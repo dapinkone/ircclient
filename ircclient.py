@@ -23,7 +23,7 @@ ircsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server = "chat.freenode.net"
 init_channel = "#nobodyhome"
 username = "simpleclient"
-port = 6667 #TODO add handling for cmdline args, handling of SASL port
+port = 6667 # TODO add handling for cmdline args, handling of SASL port?
 
 def encode_send(msg):
     ircsock.send(bytes(msg, "UTF-8"))
@@ -38,17 +38,19 @@ def join_channel(chan):
 
 join_channel(init_channel)
 def pong():
-    encode_send("PONG :pingis\n")
+    encode_send("PONG :words\n")
     print("PONG")
 
 def privmsg(msg, target=init_channel):
     encode_send("PRIVMSG {} :{}\n".format(target, msg))
 
 while True: #mainloop
-    incoming_msg = ircsock.recv(2048)
-    msglist = incoming_msg.split(b'\n')
+    incoming_msg = str(ircsock.recv(2048), "UTF-8")
+    msglist = incoming_msg.split('\n\r')
     for msg in msglist:
         msg.strip()
-        if b'PING' in msg: # should be more specific
+        if not msg: # if it's an empty line, move on.
+            continue
+        if 'PING' in msg: # should be more specific
             pong()
         print(msg)
