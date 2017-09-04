@@ -19,39 +19,47 @@ DONE: 1. connect to server, respond to ping so as not to timeout.
 12. think of more stuff to add.
 """
 import asyncio # required for semi-simultaneous handling of io
-
+import sys
 async def wait_for_data(loop):
     server = "chat.freenode.net"
     init_channel = "#nobodyhome"
-    username = "simpleclient"
+    username = "simplecli"
     port = 6667 # TODO add handling for cmdline args, handling of SASL port?
+    password = ''
     sockreader, sockwriter = await asyncio.open_connection(
         server, port, loop=loop)
     print("Socket connected.\n{}".format(repr(sockreader)))
 
-    async def encode_send(msg):
+    def encode_send(msg):
         sockwriter.write(bytes(msg + "\r\n", "UTF-8"))
         print("> " + msg)
 
-    await encode_send("USER {} {} {} {}".format(*[username]*4))
-    await encode_send("NICK {}".format(username))
-    await encode_send("JOIN {}".format(init_channel))
+    encode_send("USER {} {} {} {}".format(*[username]*4))
+    encode_send("NICK {}".format(username))
+    encode_send("JOIN {}".format(init_channel))
     while True:
         data = await sockreader.read(n=2048)
-        msg = str(data, "UTF-8")
-        msg.strip()
-        if 'PING' is msg[:4]:
-            await encode_send("PONG{}".format(msg[4:]))
-        print(msg)
+        msglist = str(data,"UTF-8").split('\r\n')
+        for msg in msglist:
+            # msg.strip()
+            if 'PING' in msg[:4]:
+                encode_send("PONG{}".format(msg[4:]))
+            print(msg)
+            if ('NickServ@services'in msg)\
+               and ('This nickname is registered' in msg):
+                encode_send("privmsg nickserv :identify " +
+                            username + " " + password)
+                #TODO store this data elsewhere. srsly.
+
         if not data: # if no more data
             break
         await asyncio.sleep(0)
     sockwriter.close()
 
-# from aioconsole import ainput
 async def take_input(loop):
-    user_input = input()
-    await encode_send(user_input)
+    #f = open(sys.stdin, 'r')
+    #user_input = await f.readline() #?? how do?
+    #await encode_send(user_input)
     pass # take/await input on STDIN
 
 
