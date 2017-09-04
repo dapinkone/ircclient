@@ -42,26 +42,26 @@ async def wait_for_data(loop):
         msglist = str(data,"UTF-8").split('\r\n')
         for msg in msglist:
             # msg.strip()
+            print(msg)
             if 'PING' in msg[:4]:
                 encode_send("PONG{}".format(msg[4:]))
-            print(msg)
             if ('NickServ@services'in msg)\
                and ('This nickname is registered' in msg):
                 encode_send("privmsg nickserv :identify " +
                             username + " " + password)
                 #TODO store this data elsewhere. srsly.
-
-        if not data: # if no more data
-            break
         await asyncio.sleep(0)
+        user_input = await take_input(loop)
+        if 'quit' in user_input:
+            encode_send('QUIT')
+            quit()
     sockwriter.close()
 
 async def take_input(loop):
-    #f = open(sys.stdin, 'r')
-    #user_input = await f.readline() #?? how do?
-    #await encode_send(user_input)
-    pass # take/await input on STDIN
-
+    while True:
+        line = await loop.run_in_executor(None, sys.stdin.readline)
+        print('got line:', line, end='')
+        return line
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(wait_for_data(loop))
