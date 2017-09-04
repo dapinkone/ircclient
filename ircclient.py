@@ -2,7 +2,7 @@
 """
 Irc client. lets take it slow.
 Planned milestones:
-1. connect to server, respond to ping so as not to timeout.
+DONE: 1. connect to server, respond to ping so as not to timeout.
 2. take input to be sent to the server
 3. reasonable formatting for output of data from socket
 4. SSL/SASL support
@@ -18,39 +18,67 @@ Planned milestones:
 11. /load script.py, and /scripts/ directory for autoloading python extensions
 12. think of more stuff to add.
 """
-import socket # there may be a more fully featured irc module. #research
-ircsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-server = "chat.freenode.net"
-init_channel = "#nobodyhome"
-username = "simpleclient"
-port = 6667 # TODO add handling for cmdline args, handling of SASL port?
+import asyncio # required for semi-simultaneous handling of io
 
-def encode_send(msg):
-    ircsock.send(bytes(msg, "UTF-8"))
+async def wait_for_data(loop):
+    server = "chat.freenode.net"
+    init_channel = "#nobodyhome"
+    username = "simpleclient"
+    port = 6667 # TODO add handling for cmdline args, handling of SASL port?
+    sockreader, sockwriter = await asyncio.open_connection(
+        server, port, loop=loop)
+    print("Socket connected.\n{}".format(repr(sockreader)))
 
-ircsock.connect((server, port))
-# TODO: write generalized function for ircsock.send("...\n")
-encode_send("USER {} {} {} {}\n".format(*[username]*4))
-encode_send("NICK {}\n".format(username))
+    async def encode_send(msg):
+        sockwriter.write(bytes(msg + "\r\n", "UTF-8"))
+        print("> " + msg)
 
-def join_channel(chan):
-    encode_send("JOIN {}\n".format(chan))
-
-join_channel(init_channel)
-def pong():
-    encode_send("PONG :words\n")
-    print("PONG")
-
-def privmsg(msg, target=init_channel):
-    encode_send("PRIVMSG {} :{}\n".format(target, msg))
-
-while True: #mainloop
-    incoming_msg = str(ircsock.recv(2048), "UTF-8")
-    msglist = incoming_msg.split('\n\r')
-    for msg in msglist:
+    await encode_send("USER {} {} {} {}".format(*[username]*4))
+    await encode_send("NICK {}".format(username))
+    await encode_send("JOIN {}".format(init_channel))
+    while True:
+        data = await sockreader.read(n=2048)
+        msg = str(data, "UTF-8")
         msg.strip()
-        if not msg: # if it's an empty line, move on.
-            continue
-        if 'PING' in msg: # should be more specific
-            pong()
+        if 'PING' is msg[:4]:
+            await encode_send("PONG{}".format(msg[4:]))
         print(msg)
+        if not data: # if no more data
+            break
+        await asyncio.sleep(0)
+    sockwriter.close()
+
+# from aioconsole import ainput
+async def take_input(loop):
+    user_input = input()
+    await encode_send(user_input)
+    pass # take/await input on STDIN
+
+
+loop = asyncio.get_event_loop()
+loop.run_until_complete(wait_for_data(loop))
+loop.run_until_complete(take_input(loop))
+loop.close()
+
+# def join_channel(chan):
+#     encode_send("JOIN {}\n".format(chan))
+
+# join_channel(init_channel)
+# def pong(msg):
+#     encode_send("PONG{}\n".format(msg))
+#     print("PONG{}\n".format(msg))
+
+# def privmsg(msg, target=init_channel):
+#     encode_send("PRIVMSG {} :{}\n".format(target, msg))
+
+
+# while True: #mainloop
+#     incoming_msg = str(ircsock.recv(2048), "UTF-8")
+#     msglist = incoming_msg.split()
+#     for msg in msglist:
+#         msg.strip()
+#         if not msg: # if it's an empty line, move on.
+#             continue
+#         if 'PING' in msg[0:4]:
+#             pong(msg[4:])
+#         print(msg)
