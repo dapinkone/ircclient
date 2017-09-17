@@ -1,0 +1,13 @@
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+
+[dev-packages]
+rope = "*"
+jedi = "*"
+autopep8 = "*"
+importmagic = "*"
+flake8 = "*"
+
+[packages]
+prompt_toolkit = "*"
