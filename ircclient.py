@@ -24,27 +24,35 @@ from prompt_toolkit.shortcuts import create_prompt_application, create_asyncio_e
 # pep8 pls ;_;
 import sys
 import logging
+from termcolor import colored, cprint # for pretty colors.
+from collections import deque
 
 loop = asyncio.get_event_loop()
 loop.set_debug(True)
 
-async def interactive_shell(): # the gui thread?
+# is this a second eventloop? for prompt-toolkit?
+eventloop = create_asyncio_eventloop()
+
+cli = CommandLineInterface(
+    application=create_prompt_application('Prompt: '),
+    eventloop=eventloop)
+
+sys.stdout = cli.stdout_proxy() # is this a good idea?
+
+sendqueue = deque()
+
+async def interactive_shell(loop): # the gui thread?
     # jonothanslenders refers to `interactive_shell`? better solution?
     # credit to him @ python-prompt-toolkit for this part
-    eventloop = create_asyncio_eventloop() # is this a second eventloop?
-
-    cli = CommandLineInterface(
-        application=create_prompt_application('Prompt: '),
-        eventloop=eventloop)
-
-    sys.stdout = cli.stdout_proxy() # is this a good idea?
-
+    print(colored("INPUT SHELL STARTED", 'red'))
     while True:
         try:
             result = await cli.run_async() # it takes input! :D
+            sendqueue.append(result.text)
             print('You said: {}'.format(result.text))
         except (EOFError, KeyboardInterrupt):
             return
+        await asyncio.sleep(0)
 
 async def wait_for_data(loop):
     server = "chat.freenode.net"
@@ -88,10 +96,13 @@ async def wait_for_data(loop):
             if '!quit' in msg:
                 encode_send('quit')
                 quit()
-        await asyncio.sleep(0.01)
+        await asyncio.sleep(0)
     sockwriter.close()
 
-loop.create_task(interactive_shell)
-loop.run_until_complete(wait_for_data(loop))
+tasks = [
+    loop.create_task(interactive_shell(loop)),
+    loop.create_task(wait_for_data(loop)) ]
+loop.run_until_complete( asyncio.wait(tasks) )
+
 
 loop.close()
