@@ -39,7 +39,10 @@ cli = CommandLineInterface(
 
 sys.stdout = cli.stdout_proxy() # is this a good idea?
 
-sendqueue = deque()
+# the only non-async stuff in the whole program. #FIXME ?
+authdata = open('./authdata.txt', 'r')
+password = authdata.readline()
+authdata.close()
 
 async def interactive_shell(loop): # the gui thread?
     # jonothanslenders refers to `interactive_shell`? better solution?
@@ -48,39 +51,36 @@ async def interactive_shell(loop): # the gui thread?
     while True:
         try:
             result = await cli.run_async() # it takes input! :D
-            sendqueue.append(result.text)
+            encode_send(result.text)
             print('You said: {}'.format(result.text))
         except (EOFError, KeyboardInterrupt):
             return
         await asyncio.sleep(0)
 
-async def wait_for_data(loop):
-    server = "chat.freenode.net"
-    init_channel = "#nobodyhome"
-    username = "simplecli"
-    port = 6667  # TODO add handling for cmdline args, handling of SASL port?
-    authdata = open('./authdata.txt', 'r')
-    password = authdata.readline()
-    authdata.close()
+# TODO: put this in an object/connect function or some shit.
 
+server = "chat.freenode.net"
+init_channel = "#nobodyhome"
+username = "simplecli"
+port = 6667  # TODO add handling for cmdline args, handling of SASL port?
+
+# i feel like this is a mortal sin. initializing globals.
+sockwriter, sockreader = (None, None)
+
+def encode_send(msg):
+    sockwriter.write(bytes(msg + "\r\n", "UTF-8"))
+    print("> " + msg)
+
+async def socket_data_handler(loop):
+    global sockreader, sockwriter # hackey, but it works.
     sockreader, sockwriter = await asyncio.open_connection(
         server, port, loop=loop)
     print("Socket connected.\n{}".format(repr(sockreader)))
 
-    def encode_send(msg):
-        sockwriter.write(bytes(msg + "\r\n", "UTF-8"))
-        print("> " + msg)
-
-    def parse_input(msg):
-        print(msg)
-        if 'quit' in msg:
-            encode_send('QUIT')
-            quit()
-
     encode_send("USER {} {} {} {}".format(*[username] * 4))
     encode_send("NICK {}".format(username))
     encode_send("JOIN {}".format(init_channel))
-
+    await asyncio.sleep(0)
     while True:
         data = await sockreader.read(n=2048)
         msglist = str(data, "UTF-8").split('\r\n')
@@ -95,14 +95,13 @@ async def wait_for_data(loop):
 
             if '!quit' in msg:
                 encode_send('quit')
-                quit()
+                break
         await asyncio.sleep(0)
     sockwriter.close()
 
+
 tasks = [
-    loop.create_task(interactive_shell(loop)),
-    loop.create_task(wait_for_data(loop)) ]
+    loop.create_task(socket_data_handler(loop)),
+    loop.create_task(interactive_shell(loop))]
 loop.run_until_complete( asyncio.wait(tasks) )
-
-
 loop.close()
