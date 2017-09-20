@@ -63,22 +63,16 @@ async def main(loop):
             # a bit hard to decipher, but this tests to see
             # if socket_data_handler's task(task 0) has run it's course
             if tasks[0].done():
-                print("TASK 0 DONE\n")
                 break
             try:
-                print("________________------------------------------")
                 result = await cli.run_async()  # it takes input! :D
-                print('#' + repr(result.text))
                 if result is not None:  # if user enters '', do nothin
                     await encode_send(result.text)
 
             except (EOFError, KeyboardInterrupt):
                 return
             await asyncio.sleep(0)
-    # TODO: put this in an object/connect function or some shit.
 
-    # i feel like this is a mortal sin. initializing globals.
-    # sockwriter, sockreader = (None, None)
     async def encode_send(msg):
         sockwriter.write(bytes(msg + "\r\n", "UTF-8"))
         print("> " + msg)
@@ -113,9 +107,5 @@ async def main(loop):
         asyncio.ensure_future(interactive_shell())
     ]
 
-
-# tasks = [
-#    loop.create_task(socket_data_handler(loop)),
-#    loop.create_task(interactive_shell(loop))]
 asyncio.ensure_future(main(loop))
 loop.run_forever()
