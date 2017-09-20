@@ -24,8 +24,8 @@ from prompt_toolkit.shortcuts import create_prompt_application, create_asyncio_e
 # pep8 pls ;_;
 import sys
 import logging
-from termcolor import colored, cprint # for pretty colors.
-from collections import deque
+from termcolor import colored, cprint  # for pretty colors.
+
 
 loop = asyncio.get_event_loop()
 loop.set_debug(True)
@@ -37,25 +37,32 @@ cli = CommandLineInterface(
     application=create_prompt_application('Prompt: '),
     eventloop=eventloop)
 
-sys.stdout = cli.stdout_proxy() # is this a good idea?
+sys.stdout = cli.stdout_proxy()  # is this a good idea?
 
 # the only non-async stuff in the whole program. #FIXME ?
 authdata = open('./authdata.txt', 'r')
 password = authdata.readline()
 authdata.close()
 
-async def interactive_shell(loop): # the gui thread?
+
+async def interactive_shell(loop):  # the gui thread?
     # jonothanslenders refers to `interactive_shell`? better solution?
     # credit to him @ python-prompt-toolkit for this part
     print(colored("INPUT SHELL STARTED", 'red'))
     while True:
+        # a bit hard to decipher, but this tests to see
+        # if socket_data_handler's task(task 0) has run it's course
+        if tasks[0].done():
+            break
         try:
-            result = await cli.run_async() # it takes input! :D
-            encode_send(result.text)
-            print('You said: {}'.format(result.text))
+            result = await cli.run_async()  # it takes input! :D
+            if result is not None:  # if user enters '', do nothin
+                encode_send(result.text)
+
         except (EOFError, KeyboardInterrupt):
             return
         await asyncio.sleep(0)
+
 
 # TODO: put this in an object/connect function or some shit.
 
@@ -67,12 +74,14 @@ port = 6667  # TODO add handling for cmdline args, handling of SASL port?
 # i feel like this is a mortal sin. initializing globals.
 sockwriter, sockreader = (None, None)
 
+
 def encode_send(msg):
     sockwriter.write(bytes(msg + "\r\n", "UTF-8"))
     print("> " + msg)
 
+
 async def socket_data_handler(loop):
-    global sockreader, sockwriter # hackey, but it works.
+    global sockreader, sockwriter  # hackey, but it works.
     sockreader, sockwriter = await asyncio.open_connection(
         server, port, loop=loop)
     print("Socket connected.\n{}".format(repr(sockreader)))
@@ -82,20 +91,21 @@ async def socket_data_handler(loop):
     encode_send("JOIN {}".format(init_channel))
     await asyncio.sleep(0)
     while True:
-        data = await sockreader.read(n=2048)
-        msglist = str(data, "UTF-8").split('\r\n')
-        for msg in msglist:
-            print(msg)
-            if 'PING' in msg[:4]:
-                encode_send("PONG{}".format(msg[4:]))
-            if ('NickServ@services'in msg)\
-               and ('This nickname is registered' in msg):
-                encode_send("privmsg nickserv :identify " +
-                            username + " " + password)
+        data = await sockreader.readline()
+        msg = str(data, "UTF-8").strip()
+        print('>' + msg)
+        if 'PING' in msg[:4]:
+            encode_send("PONG{}".format(msg[4:]))
+        if ('NickServ@services'in msg)\
+           and ('This nickname is registered' in msg):
+            encode_send("privmsg nickserv :identify " +
+                        username + " " + password)
+        if sockreader.at_eof():
+            return
 
-            if '!quit' in msg:
-                encode_send('quit')
-                break
+        if '!quit' in msg:
+            encode_send('quit')
+            break
         await asyncio.sleep(0)
     sockwriter.close()
 
@@ -103,5 +113,5 @@ async def socket_data_handler(loop):
 tasks = [
     loop.create_task(socket_data_handler(loop)),
     loop.create_task(interactive_shell(loop))]
-loop.run_until_complete( asyncio.wait(tasks) )
+loop.run_until_complete(asyncio.wait(tasks))
 loop.close()
