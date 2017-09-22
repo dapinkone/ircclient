@@ -3,11 +3,11 @@
 Irc client. lets take it slow.
 Planned milestones:
 DONE: 1. connect to server, respond to ping so as not to timeout.
-2. take  input to be sent to the server
+DONE: 2. take  input to be sent to the server
 3. reasonable formatting for output of data from socket
 4. SSL/SASL support
 5. addition of ncurse or similar gui, to graphically separate input and output
-   requires asyncio?
+DONE: 5.1 converted to asyncio.
 6. support for /join, /part, /quit like most IRC clients have
 7. proper parsing of user input, rather than input->socket
 8. status line - showing which channels are currently joined, nick, etc
@@ -58,7 +58,8 @@ async def main(loop):
     async def interactive_shell():  # the gui thread?
         # jonothanslenders refers to `interactive_shell`? better solution?
         # credit to him @ python-prompt-toolkit for this part
-        print(colored("INPUT SHELL STARTED", 'red'))
+        cprint("INPUT SHELL STARTED", "red")
+        asyncio.Task.current_task().name = 'SHELL'  # e.e
         while True:
             # a bit hard to decipher, but this tests to see
             # if socket_data_handler's task(task 0) has run it's course
@@ -71,6 +72,12 @@ async def main(loop):
 
             except (EOFError, KeyboardInterrupt):
                 return
+            for x in asyncio.Task.all_tasks(loop=loop):
+                try:
+                    print(x.name)
+                except:
+                    pass
+
             await asyncio.sleep(0)
 
     async def encode_send(msg):
@@ -78,9 +85,9 @@ async def main(loop):
         print("> " + msg)
 
     async def socket_data_handler(loop):
-        encode_send("USER {} {} {} {}".format(*[username] * 4))
-        encode_send("NICK {}".format(username))
-        encode_send("JOIN {}".format(init_channel))
+        await encode_send("USER {} {} {} {}".format(*[username] * 4))
+        await encode_send("NICK {}".format(username))
+        await encode_send("JOIN {}".format(init_channel))
         await asyncio.sleep(0)
 
         while True:
@@ -88,16 +95,16 @@ async def main(loop):
             msg = str(data, "UTF-8").strip()
             print('>' + msg)
             if 'PING' in msg[:4]:
-                encode_send("PONG{}".format(msg[4:]))
+                await encode_send("PONG{}".format(msg[4:]))
             if ('NickServ@services'in msg)\
                and ('This nickname is registered' in msg):
-                encode_send("privmsg nickserv :identify " +
-                            username + " " + password)
+                await encode_send("privmsg nickserv :identify " +
+                                  username + " " + password)
             if sockreader.at_eof():
                 return
 
             if '!quit' in msg:
-                encode_send('quit')
+                await encode_send('quit')
                 break
             await asyncio.sleep(0)
         sockwriter.close()
