@@ -23,12 +23,10 @@ from prompt_toolkit.interface import CommandLineInterface
 from prompt_toolkit.shortcuts import create_prompt_application, create_asyncio_eventloop
 # pep8 pls ;_;
 import sys
-import logging
-from termcolor import colored, cprint  # for pretty colors.
-
+# from termcolor import colored, cprint  # for pretty colors # ;_; broken?
 
 loop = asyncio.get_event_loop()
-loop.set_debug(True)
+loop.set_debug(True) # does this even do something?
 
 # the only non-async stuff in the whole program. #FIXME ?
 authdata = open('./authdata.txt', 'r')
@@ -50,14 +48,14 @@ class ircagent:
         application=create_prompt_application('Prompt: '),
         eventloop=eventloop)
 
-    # sys.stdout = cli.stdout_proxy()  # is this a good idea?
+    sys.stdout = cli.stdout_proxy()  # is this a good idea?
 
     async def startagent(self):
         self.sockreader, self.sockwriter = await asyncio.open_connection(
             self.server, self.port, loop=loop)
         print("Socket connected.\n{}".format(repr(self.sockreader)))
-        await asyncio.ensure_future(self.socket_data_handler(loop))
-        # await asyncio.ensure_future(self.interactive_shell(loop))
+        asyncio.ensure_future(self.interactive_shell())
+        asyncio.ensure_future(self.socket_data_handler(loop))
 
     async def interactive_shell(self):  # the gui thread?
         # jonothanslenders refers to `interactive_shell`? better solution?
@@ -73,7 +71,8 @@ class ircagent:
                 return
             for x in asyncio.Task.all_tasks(loop=loop):
                 try:
-                    print(x.name)
+                    # This is neat, and possibly a sin? use later.
+                    pass  # print(x.name)
                 except:
                     pass
 
