@@ -46,7 +46,8 @@ class ircagent:
         self.sockreader, self.sockwriter = await asyncio.open_connection(
             self.server, self.port, loop=loop)
 
-        print("Socket connected.\n{}".format(repr(self.sockreader)))
+        if self.sockreader:
+            print("Socket connected.")
 
         # adding everything to the loop proper
         asyncio.ensure_future(self.interactive_shell())
@@ -81,6 +82,7 @@ class ircagent:
 
             if 'PING' in msg[:4]:
                 await self.encode_send("PONG{}".format(msg[4:]))
+                continue  # nothing else to see here. move on.
 
             # auto-identify with nickserv
             if (msg.startswith(':NickServ!NickServ@services. NOTICE')
@@ -107,6 +109,16 @@ class ircagent:
                     sender_target = pieces[2]
                     sender_msg    = ' '.join(pieces[3:])[1:]
                     print(f"{sender_target} <{sender_nick}> {sender_msg}")
+                elif action in "JOIN PART":  # code duplication ;_;
+                    sender_nick, sender_info = pieces[0][1:].split('!')
+                    sender_target = pieces[2]
+                    sender_msg = ' '.join(pieces[3:])[1:]
+
+                    print(f"-!- {sender_nick} [{sender_info}]has " +
+                          f"{action.lower()}ed {sender_target}", end="")
+                    if action is "PART":
+                        print(f"[{sender_msg}]", end="")
+                    print("-!-")
                 else:  # if i haven't written a rule for it yet, just print msg
                     print(msg)
 
