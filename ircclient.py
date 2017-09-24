@@ -150,9 +150,8 @@ async def report(loop):
 async def main(loop):
     # do some commandline argument processing.
     # i feel this section is rather verbose, and may be due for a refactor.
-
     argparser = argparse.ArgumentParser(description='Connect to IRC.')
-    argparser.add_argument("server",
+    argparser.add_argument("server", nargs='?',
                            help="The address of the server to connect to")
     # boolean flag for if debug mode is desired
     argparser.add_argument("--debug", help="Turn on debug mode",
@@ -174,7 +173,6 @@ async def main(loop):
     if args.debug:
         global debugmode  # globals are bad form; how is this commonly done?
         debugmode = True
-
     # End of argument parsing.
     # start the ircagent/client object
     agent = ircagent(args.server, args.port, args.chan, args.nick)
