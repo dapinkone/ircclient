@@ -4,7 +4,7 @@ Irc client implemented with python 3 + asyncio.
 See TODO.org for TODOs, Readme.md for feature list and documentation
 
 """
-import os
+# import os
 import sys
 import asyncio
 import argparse
@@ -12,7 +12,7 @@ import argparse
 from prompt_toolkit.interface import CommandLineInterface
 # pep8 pls ;_;
 from prompt_toolkit.shortcuts import create_prompt_application,\
-                                     create_asyncio_eventloop
+    create_asyncio_eventloop
 
 debugmode = False
 loop = asyncio.get_event_loop()
@@ -25,10 +25,10 @@ authdata.close()
 
 
 class ircagent:
-    def __init__(self, server, port, init_channel, username):
+    def __init__(self, server, port, init_channel, nick):
         self.server       = server
         self.init_channel = init_channel
-        self.username     = username
+        self.nick         = nick
         self.port         = port
 
     async def startagent(self):
@@ -50,12 +50,11 @@ class ircagent:
 
         # adding everything to the loop proper
         asyncio.ensure_future(self.interactive_shell())
-        asyncio.ensure_future(self.socket_data_handler(loop))
+        asyncio.ensure_future(self.socket_data_handler())
 
     async def interactive_shell(self):  # the gui thread?
         # jonothanslenders refers to `interactive_shell`? better solution?
         # credit to him @ python-prompt-toolkit for this part
-        asyncio.Task.current_task().name = 'SHELL'  # e.e
         while True:
             try:
                 result = await self.cli.run_async()  # it takes input! :D
@@ -66,12 +65,13 @@ class ircagent:
 
     async def encode_send(self, msg):
         self.sockwriter.write(bytes(msg + "\r\n", "UTF-8"))
-        print("> " + msg)
+        if debugmode:
+            print("> " + msg)
 
     # if these are always called within async main, so i need to pass loop?
-    async def socket_data_handler(self, loop):
-        await self.encode_send("USER {} {} {} {}".format(*[self.username] * 4))
-        await self.encode_send("NICK {}".format(self.username))
+    async def socket_data_handler(self):
+        await self.encode_send("USER {} {} {} {}".format(*[self.nick] * 4))
+        await self.encode_send("NICK {}".format(self.nick))
         await self.encode_send("JOIN {}".format(self.init_channel))
         await asyncio.sleep(0)
 
@@ -84,7 +84,7 @@ class ircagent:
             if ('NickServ@services'in msg)\
                and ('This nickname is registered' in msg):
                 await self.encode_send("privmsg nickserv :identify " +
-                                       self.username + " " + password)
+                                       self.nick + " " + password)
                 # TODO ^^ fix password/authdata to be async and in-class
             if self.sockreader.at_eof():
                 return
@@ -142,13 +142,12 @@ async def main(loop):
     args = argparser.parse_args()
 
     if args.debug:
-        global debugmode  # globals bad form; how is this commonly done?
+        global debugmode  # globals are bad form; how is this commonly done?
         debugmode = True
 
     # End of argument parsing.
     # start the ircagent/client object
-    agent = ircagent(args.server, args.port, args.chan,
-                     args.nick)
+    agent = ircagent(args.server, args.port, args.chan, args.nick)
     await agent.startagent()
 
 if __name__ == "__main__":
