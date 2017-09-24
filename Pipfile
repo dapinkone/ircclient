@@ -12,3 +12,4 @@ flake8 = "*"
 [packages]
 prompt_toolkit = "*"
 termcolor = "*"
+Pygments = "*"

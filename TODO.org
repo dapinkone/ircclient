@@ -6,18 +6,18 @@ Planned Features/Bugs:
 ** TODO add use of logging module for debug statements
 ** TODO DOCUMENTATION PLS
 ** TODO Tests? Surely I can write tests for this somehow?
-** IN-PROGRESS some form of more sane TODO/ticket structure?
+** DONE some form of more sane TODO/ticket structure?
 ** DONE converted to asyncio.
 * GUI
 ** TODO addition of ncurse or similar gui, to graphically separate 
 input and output(better option than prompt_toolkit?)
-** TODO proper parsing of user input, rather than input** TODO>socket
+** TODO proper parsing of user input, rather than input->socket
 ** TODO status line showing which channels are currently joined,
 nick, etc
 ** TODO window switching(a la irssi /show, /1, /2, etc)
 ** TODO vertical split, horizontal split, pane-based status bars
 ** TODO color code/hilight active pane or window?
-** TODO reasonable formatting for output of data from socket
+** IN-PROGRESS reasonable formatting for output of data from socket
 ** TODO color codes to highlight user, color code channels, etc
 ** DONE take input to be sent to the server
 * NETWORK

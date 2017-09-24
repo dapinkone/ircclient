@@ -78,20 +78,38 @@ class ircagent:
         while True:
             data = await self.sockreader.readline()
             msg = str(data, "UTF-8").strip()
-            print('<' + msg)
+
             if 'PING' in msg[:4]:
                 await self.encode_send("PONG{}".format(msg[4:]))
-            if ('NickServ@services'in msg)\
-               and ('This nickname is registered' in msg):
+
+            # auto-identify with nickserv
+            if (msg.startswith(':NickServ!NickServ@services. NOTICE')
+               and ('This nickname is registered' in msg)):
                 await self.encode_send("privmsg nickserv :identify " +
                                        self.nick + " " + password)
                 # TODO ^^ fix password/authdata to be async and in-class
+
             if self.sockreader.at_eof():
                 return
 
-            if '!quit' in msg:
-                await self.encode_send('quit')
-                break
+            if debugmode:
+                print('<' + msg)
+                # allows us to kill from socket side in case of gui issues
+                if '!quit' in msg:
+                    await self.encode_send('quit')
+                    break
+            else:  # not in debug mode; regular output.
+                pieces = msg.split()
+                action = pieces[1]  # (PRIVMSG|NOTICE|MODE|...)
+                if action in "PRIVMSG NOTICE":
+                    # :user!realname@host PRIVMSG target :messages of stuff
+                    sender_nick   = pieces[0][1:].split('!')[0]
+                    sender_target = pieces[2]
+                    sender_msg    = ' '.join(pieces[3:])[1:]
+                    print(f"{sender_target} <{sender_nick}> {sender_msg}")
+                else:  # if i haven't written a rule for it yet, just print msg
+                    print(msg)
+
             await asyncio.sleep(0)
         self.sockwriter.close()
 
@@ -129,7 +147,7 @@ async def main(loop):
                            action="store_true")
     argparser.add_argument("-p", "--port", help="specify port to be used",
                            type=int)
-    argparser.add_argument("-j", "--chan", help="specify channels to join")
+    argparser.add_argument("-c", "--chan", help="specify channels to join")
     argparser.add_argument("-n", "--nick", help="nick used on connection")
 
     # sensible defaults for if we provide no commandline arguments.
