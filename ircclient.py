@@ -1,17 +1,20 @@
 #!/usr/bin/python
 """
 Irc client implemented with python 3 + asyncio.
+See TODO.org for TODOs, Readme.md for feature list and documentation
 
 """
-import asyncio
-from prompt_toolkit.interface import CommandLineInterface
-from prompt_toolkit.shortcuts import create_prompt_application, create_asyncio_eventloop
-# pep8 pls ;_;
+import os
 import sys
-# from termcolor import colored, cprint  # for pretty colors # ;_; broken?
+import asyncio
+import argparse
 
-debugmode = True
+from prompt_toolkit.interface import CommandLineInterface
+# pep8 pls ;_;
+from prompt_toolkit.shortcuts import create_prompt_application,\
+                                     create_asyncio_eventloop
 
+debugmode = False
 loop = asyncio.get_event_loop()
 loop.set_debug(debugmode)  # does this even do something?
 
@@ -23,11 +26,10 @@ authdata.close()
 
 class ircagent:
     def __init__(self, server, port, init_channel, username):
-        self.server = server
+        self.server       = server
         self.init_channel = init_channel
-        self.username = username
-        self.port = port
-
+        self.username     = username
+        self.port         = port
 
     async def startagent(self):
         # gui stuff to get the CLI prompt-toolkit started
@@ -50,8 +52,6 @@ class ircagent:
         asyncio.ensure_future(self.interactive_shell())
         asyncio.ensure_future(self.socket_data_handler(loop))
 
-
-
     async def interactive_shell(self):  # the gui thread?
         # jonothanslenders refers to `interactive_shell`? better solution?
         # credit to him @ python-prompt-toolkit for this part
@@ -68,6 +68,7 @@ class ircagent:
         self.sockwriter.write(bytes(msg + "\r\n", "UTF-8"))
         print("> " + msg)
 
+    # if these are always called within async main, so i need to pass loop?
     async def socket_data_handler(self, loop):
         await self.encode_send("USER {} {} {} {}".format(*[self.username] * 4))
         await self.encode_send("NICK {}".format(self.username))
@@ -94,10 +95,11 @@ class ircagent:
             await asyncio.sleep(0)
         self.sockwriter.close()
 
+
 async def report(loop):
     # this coroutine is going to monitor the tasks on the loop
     # and report the running tasks periodically
-    # for debug purposes, and so we can close gracefully
+    # for debug purposes, and gracefully close the program
     # when that seems reasonable.
     while True:
         running_tasks = [t for t in asyncio.Task.all_tasks(loop=loop)
@@ -105,6 +107,7 @@ async def report(loop):
         if(len(running_tasks) == 1):  # we're solo? job's done.
             print("Job's done. Quiting.")
             # closing the loop at next "free" moment
+
             loop.stop()
             # we're done, so return to close the kill the coroutine
             return
@@ -113,9 +116,42 @@ async def report(loop):
             print("REPORT:" + repr(task_names))
         await asyncio.sleep(3)
 
+
 async def main(loop):
-    agent = ircagent('irc.freenode.net', 6667, '#nobodyhome', 'simplecli')
+    # do some commandline argument processing.
+    # i feel this section is rather verbose, and may be due for a refactor.
+
+    argparser = argparse.ArgumentParser(description='Connect to IRC.')
+    argparser.add_argument("server",
+                           help="The address of the server to connect to")
+    # boolean flag for if debug mode is desired
+    argparser.add_argument("--debug", help="Turn on debug mode",
+                           action="store_true")
+    argparser.add_argument("-p", "--port", help="specify port to be used",
+                           type=int)
+    argparser.add_argument("-j", "--chan", help="specify channels to join")
+    argparser.add_argument("-n", "--nick", help="nick used on connection")
+
+    # sensible defaults for if we provide no commandline arguments.
+    argparser.set_defaults(
+        server = 'Irc.Freenode.net',
+        port   = 6667,
+        chan   = '#nobodyhome',
+        nick   = 'SimpleCli')
+
+    args = argparser.parse_args()
+
+    if args.debug:
+        global debugmode  # globals bad form; how is this commonly done?
+        debugmode = True
+
+    # End of argument parsing.
+    # start the ircagent/client object
+    agent = ircagent(args.server, args.port, args.chan,
+                     args.nick)
     await agent.startagent()
-asyncio.ensure_future(report(loop))
-asyncio.ensure_future(main(loop))
-loop.run_forever()
+
+if __name__ == "__main__":
+    asyncio.ensure_future(report(loop))
+    asyncio.ensure_future(main(loop))
+    loop.run_forever()

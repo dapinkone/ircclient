@@ -1,0 +1,34 @@
+IRC CLient Objective: Deliver a usable, intuitive CLI IRC experience.
+
+Planned Features/Bugs:
+* GENERAL
+** DONE proper commandline argument parsing with argparse
+** TODO add use of logging module for debug statements
+** TODO DOCUMENTATION PLS
+** TODO Tests? Surely I can write tests for this somehow?
+** IN-PROGRESS some form of more sane TODO/ticket structure?
+** DONE converted to asyncio.
+* GUI
+** TODO addition of ncurse or similar gui, to graphically separate 
+input and output(better option than prompt_toolkit?)
+** TODO proper parsing of user input, rather than input** TODO>socket
+** TODO status line showing which channels are currently joined,
+nick, etc
+** TODO window switching(a la irssi /show, /1, /2, etc)
+** TODO vertical split, horizontal split, pane-based status bars
+** TODO color code/hilight active pane or window?
+** TODO reasonable formatting for output of data from socket
+** TODO color codes to highlight user, color code channels, etc
+** DONE take input to be sent to the server
+* NETWORK
+** TODO SSL/SASL support
+** TODO support for multiple server connections, /connect command, etc
+** DONE connect to server, respond to ping so as not to timeout.
+* COMMANDS
+** TODO support for /join, /part
+** TODO proper /quit
+* FILES
+** TODO FILES /scripts/ dir for autoloading py extensions
+** TODO ability to load/reload formatting/command code for faster development
+** TODO authdata needs a real format/database?
+** TODO authdata needs to be read async.
