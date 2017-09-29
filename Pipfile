@@ -3,13 +3,15 @@ url = "https://pypi.python.org/simple"
 verify_ssl = true
 
 [dev-packages]
+
 rope = "*"
 jedi = "*"
-autopep8 = "*"
+"autopep8" = "*"
 importmagic = "*"
-flake8 = "*"
+"flake8" = "*"
 
 [packages]
-prompt_toolkit = "*"
-termcolor = "*"
+
+"prompt_toolkit" = "*"
 Pygments = "*"
+colored = "*"
