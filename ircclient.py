@@ -8,6 +8,7 @@ See TODO.org for TODOs, Readme.md for feature list and documentation
 import sys
 import asyncio
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 
 from prompt_toolkit.interface import CommandLineInterface
 # pep8 pls ;_;
@@ -18,18 +19,14 @@ debugmode = False
 loop = asyncio.get_event_loop()
 loop.set_debug(debugmode)  # does this even do something?
 
-# the only non-async stuff in the whole program. #FIXME ?
-authdata = open('./authdata.txt', 'r')
-password = authdata.readline()
-authdata.close()
-
 
 class ircagent:
-    def __init__(self, server, port, init_channel, nick):
+    def __init__(self, server, port, init_channel, nick, password=None):
         self.server       = server
+        self.port         = port
         self.init_channel = init_channel
         self.nick         = nick
-        self.port         = port
+        self.password     = password
 
     async def startagent(self):
         # gui stuff to get the CLI prompt-toolkit started
@@ -85,11 +82,16 @@ class ircagent:
                 continue  # nothing else to see here. move on.
 
             # auto-identify with nickserv
-            if (msg.startswith(':NickServ!NickServ@services. NOTICE')
-               and ('This nickname is registered' in msg)):
-                await self.encode_send("privmsg nickserv :identify " +
-                                       self.nick + " " + password)
-                # TODO ^^ fix password/authdata to be async and in-class
+            if msg.startswith(':NickServ!NickServ@services. NOTICE'):
+                if 'This nickname is registered' in msg:
+                    if self.password:
+                        # Prebuild our string. PEP8!
+                        fmt_str = 'PRIVMSG NickServ :identify {} {}'
+
+                        # Authenticate
+                        await self.encode_send(
+                            fmt_str.format(self.nick, self.password)
+                        )
 
             if self.sockreader.at_eof():
                 return
@@ -147,6 +149,16 @@ async def report(loop):
         await asyncio.sleep(3)
 
 
+async def aioOpenFile(filename, loop=None):
+    if loop is None:
+        loop = asyncio.get_event_loop()
+
+    with open(filename, 'rb') as data:
+        io_pool = ThreadPoolExecutor()
+        obj = await loop.run_in_executor(io_pool, data.read)
+        return(obj)
+
+
 async def main(loop):
     # do some commandline argument processing.
     # i feel this section is rather verbose, and may be due for a refactor.
@@ -160,13 +172,21 @@ async def main(loop):
                            type=int)
     argparser.add_argument("-c", "--chan", help="specify channels to join")
     argparser.add_argument("-n", "--nick", help="nick used on connection")
+    argparser.add_argument("-a", "--auth", help="password for nickserv")
+
+    try:
+        authdata = await aioOpenFile('./authdata.txt', 'r')
+    except FileNotFoundError:
+        authdata = None
 
     # sensible defaults for if we provide no commandline arguments.
     argparser.set_defaults(
         server = 'Irc.Freenode.net',
         port   = 6667,
         chan   = '#nobodyhome',
-        nick   = 'SimpleCli')
+        nick   = 'SimpleCli',
+        auth   = authdata,
+    )
 
     args = argparser.parse_args()
 
@@ -175,7 +195,9 @@ async def main(loop):
         debugmode = True
     # End of argument parsing.
     # start the ircagent/client object
-    agent = ircagent(args.server, args.port, args.chan, args.nick)
+    agent = ircagent(
+        args.server, args.port, args.chan, args.nick, password=args.auth
+    )
     await agent.startagent()
 
 if __name__ == "__main__":
