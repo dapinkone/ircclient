@@ -149,11 +149,11 @@ async def report(loop):
         await asyncio.sleep(3)
 
 
-async def aioOpenFile(filename, loop=None):
+async def aioOpenFile(filename, mode, loop=None):
     if loop is None:
         loop = asyncio.get_event_loop()
 
-    with open(filename, 'rb') as data:
+    with open(filename, mode) as data:
         io_pool = ThreadPoolExecutor()
         obj = await loop.run_in_executor(io_pool, data.read)
         return(obj)
